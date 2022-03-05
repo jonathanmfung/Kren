@@ -1,0 +1,58 @@
+* Kren - Analyze Korean-English Language Songs
+A small script that aims to visualize and understand K-Pop songs.
+
+- Where does Kr/En appear in a line/verse/section/song
+- Proportion
+- Comparisons across artists, albums, companies, composers
++ Just consider each hangul block as one syllable?
++ Try to compensate for vowel-ㅇ (다음, 아이)
+
+** Installation
+=Kren= is not developed as a formal package. Try to evaluate the =Kren.R=.
+
+Packages required are:
+** Getting Started
+Search for your favorite songs, looking for its Genius page in original lyrics.
+
+Copy only the lyrics into a file, see =./examples/example-lyrics.txt= for the correct format. Make sure there is an empty line in between each section, and to keep section headers.
+
+#+begin_src R :eval no
+  fromis_9._.DM <- lyrics_tree_data("lyrics/fromis_9-DM.txt")
+  lyrics_violin(fromis_9._.DM)
+  lyrics_smry(fromis_9._.DM, stat = kr_prop, smry_f = mean)
+#+end_src
+
+** Inspiration
+I have always noticed that K-Pop songs tend to end lines in English, or so I thought. One day, when thinking about this phenomenon, I thought it could be understood through some ruditementary procesing. Thus, =Kren= was born.
+** Methods
+- Words
+- Syllables
+- Non-latin characters, such as ae
+- Ad-Libs
+- Punctuation
+** TODOs
+*** DONE =raw_df= add in line_beg and line_end
+*** DONE Fix colors on =lyrics_chist=
+*** DONE =main= Change to something like parse_lyrics
+*** DONE =section_tree_to_df= change kr_prop to kr_word_prop
+*** DONE =section_tree_to_df= add kr_syllab_prop and kr/total_syllab_cnt
+*** DONE =parse_lyrics= Maybe toggle to keep/remove adlibs (things in parentheses)
+Need to figure out where (which function) to put interface
+
+https://stackoverflow.com/a/24173271
+
+#+begin_src R :eval no
+gsub("\\s*\\([^\\)]+\\)","",parse_lyrics(fName)$Chorus.1[[8]])
+unlist(strsplit(parse_lyrics(fName)$Chorus.2[[1]], " \\(.*\\)"))
+#+end_src
+*** TODO Add more statistical analysis interfaces, or flesh out more examples
+*** TODO Could look into how repeated sections differ (Chorus)
+*** TODO Consider adding metadata into beginning of lyrics file
+**** Then need to change parsing and processing
+Could Have another folder =metadata= that is one-to-one to =lyrics=
+*** TODO Implement ways to process multiple files/folders
+**** TODO Then easy ways to compare groups, composers, companies, etc.
+Or just leave up to user
+*** TODO Formalize interface
+The new main can integrate graphs?
+Or just leave as a library with some effort required
