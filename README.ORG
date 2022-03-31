@@ -22,6 +22,7 @@ Copy only the lyrics into a file, see =./examples/dummy_lyrics.txt= for the corr
 The data produced by =lyrics_tree_data= is the main interface for this program.
 
 #+begin_src R :eval no
+  # Object must be in this NAME._.TITLE format for plots to show proper title
   Artist._.Song <- lyrics_tree_data("dummy_lyrics.txt")
   lyrics_violin(Artist._.Song)
   lyrics_smry(Artist._.Song)
