@@ -3,6 +3,7 @@ A small script that aims to visualize and understand K-Pop songs.
 
 I have always noticed that K-Pop songs tend to end lines in English, or so I thought. One day, when thinking about this phenomenon, I thought it could be understood through some rudimentary processing. Thus, =Kren= was born.
 
+(Below is the output of =lyrics_violin=)
 [[./examples/violin.jpg]]
 
 ** Installation
@@ -46,11 +47,11 @@ See =./examples/usage.R= for a full list of interface examples.
   - Processed as 0 syllables, as they are not in the Korean or English Unicode sets
 - Ad-Libs
   - Ad-Libs are considered any lyric encapsulated by parentheses
-  - Can be ignored through =parse_lyrics(fileName, rm.adlibs = TRUE)=
+  - Can be ignored through =lyrics_tree_data(fileName, rm.adlibs = TRUE)=
   - Example
     - Original: =normal (this is an adlib) lyrics=
     - With =rm.adlibs = TRUE=: =normal lyrics=
-- Punctuation
+- Punctuation is ignored
 ** Available Analyses
 - =lyrics_violin=
   - Create a [[https://ggplot2.tidyverse.org/reference/geom_violin.html?q=violin#ref-examples][violin]]-esque plot
@@ -80,6 +81,7 @@ See =./examples/usage.R= for a full list of interface examples.
     - Effectively tells if the maximum distance between the two empirical cumulative distribution (ecdf) is large
     - Rejection means that the two sets do not come ("sample") from a similar generator
 ** Gallery
+*** =lyrics_chist=
 [[./examples/chist.jpg]]
-
+*** =lyrics_series=
 [[./examples/series.jpg]]
