@@ -83,6 +83,7 @@ parse_lyrics <- function (fileName, rm.adlibs = FALSE) {
     ## https://stackoverflow.com/questions/9068397/import-text-file-as-single-character-string
     paras        <- readChar(fileName, file.info(fileName)$size) |> strsplit("\n\n")
     paras_lines        <- sapply(paras[[1]], \(x) strsplit(x, "\n"))
+
     if (rm.adlibs) {
         ## adlibs are anything enclosed in parentheses, also trim leading/trailing whitespace
         paras_lines <- sapply(paras_lines, \(x) sapply(x, \(y) trimws(gsub("\\s*\\([^\\)]+\\)","", y )), USE.NAMES = FALSE ))
@@ -90,8 +91,17 @@ parse_lyrics <- function (fileName, rm.adlibs = FALSE) {
         paras_lines <- sapply(paras_lines, \(x) x[ x != ""])
     }
     names(paras_lines) <- sapply(names(paras_lines), \(x) clean_section(x))
+
     names(paras_lines) <- make.names(names(paras_lines), unique = TRUE) # Allows unique Chorus etc.
     lyrx        <- sapply(paras_lines, \(x) x[-1]) # Remove section line
+
+    ## This handles when sections all have same length, and are simplified by sapply
+    if (!is.null(dimnames(lyrx))) {
+        new_lyrx <- list()
+        for (i in 1:dim(lyrx)[2]) {new_lyrx[[i]] <- lyrx[,i]}
+        names(new_lyrx) <- dimnames(lyrx)[[2]]
+        return(new_lyrx)
+    }
 
     return(lyrx)
 }
@@ -186,6 +196,9 @@ section_tree_to_df <- function (section) {
     return(vec)
 }
 
+lyrics_STATS <- list(word = c("violin_xs", "hangulp", "syllabs"),
+                     line = c("line_rel", "kr_word_prop", "word_cnt", "kr_syllab_prop", "syllab_cnt", "kr_line_begp", "kr_line_endp"))
+
 lyrics_tree_to_df <- function (lyrics_data, by_line = FALSE) {
     raw_list    <- lapply(lyrics_data,
                        \(x) x |> section_tree_to_df() |> bind_rows())
@@ -199,6 +212,8 @@ lyrics_tree_to_df <- function (lyrics_data, by_line = FALSE) {
                    mutate(line_tot=1:nrow(.)) }
     return(df_raw)
 }
+
+# Plots ------------------------------
 
 lyrics_violin <- function (lyrics_data) {
     # Maybe in Future: Put correspondying lyrics on each/across point
@@ -269,155 +284,95 @@ lyrics_series <- function (lyrics_data) {
         theme_kren()
 }
 
-## ----------------------------------------------------------------------------------------------------
+# Analysis ------------------------------
 
-fName1 <- 'lyrics/fromis_9-DM.txt'
-fName2 <- 'lyrics/aespa-Savage.txt'
-fName3 <- 'lyrics/STAYC-STEREOTYPE.txt'
-fName4 <- 'lyrics/BLACKPINK-PrettySavage.txt'
-fName <- fName1
-dat <- lyrics_tree_data(fName)
-fromis_9._.DM <- lyrics_tree_data(fName1)
-aespa._.Savage <- lyrics_tree_data(fName2)
-aespa._.Savage1 <- lyrics_tree_data(fName2, rm.adlibs = TRUE)
-STAYC._.STEREOTYPE <- lyrics_tree_data(fName3)
-BLACKPINK._.PrettySavage <- lyrics_tree_data(fName4)
-
-fNameList <- c(fName1, fName2, fName3)
-datList <- sapply(fNameList, lyrics_tree_data)
-# datList[[2]] == lyrics_tree_data(fName2)
-# datList[[N]][[2]] == song name
-
-d <- lyrics_tree_to_df(dat)
-
-# TODO: Analysis
-# Calculate overall proportion of ENsyllable-KRword, ENword-KRword
-
-## binomual regression
-binom <- dat %>% lyrics_tree_to_df()  %>%
-    select(sect, kr_word_prop, line_rel) %>% # line_rel ensures distinct() doesn't trim too much
-    distinct() %>%
-    mutate(line_tot=1:nrow(.))
-
-glm(cbind(kr_word_prop, 1-kr_word_prop) ~ line_tot, family=binomial, data=binom)
-## i dont have many variables to work with,
-
-
-chisq.test(table(d$hangulp, d$syllabs))
-
-glm(d$hangulp ~ d$syllabs, family = "binomial")
-
-binomial_smooth <- function(...) {
-  geom_smooth(method = "glm", method.args = list(family = "binomial"), ...)
-}
-
-ggplot(d,aes(x=syllabs, y = hangulp, col = syllabs)) +
-    geom_point() + binomial_smooth() + geom_jitter(width=0.1, height=0.1)
-
-## time series
-## library(fpp3)
-## ## ma (moving average) is not in fpp3
-## ## dat %>% data_to_df(by_line = TRUE)  %>%
-## ##     mutate(ma = ma(kr_word_prop, n = 3)) %>%
-## ##     ggplot(aes(x=line_tot, y=kr_word_prop)) +
-## ##         geom_line() +
-## ##     geom_line(aes(y=ma, col="red"))
-
-## dat %>% lyrics_tree_to_df(by_line = TRUE)  %>%
-##     tsibble(index=line_tot) %>%
-##     model(ARIMA(kr_word_prop)) %>%
-##     report()
-
-
-
-
-lyrics_smry <- function(lyrics_data, stat = kr_word_prop, smry_f = mean) {
-    #' stat should be any output of section_tree_to_df()
+lyrics_smry <- function(lyrics_data, stat = kr_word_prop, smry_f = mean, stat.only = FALSE) {
+    #' stat should be any output of section_tree_to_df(), lyrics_STATS$line
     #' smry_f is any one dimensional statistic, mean, median, mode, max, min, etc.
     f_str <- enexpr(smry_f)
     smry_df <- lyrics_data %>%
         lyrics_tree_to_df(by_line = TRUE)  %>% # removes duplicates
         group_by(sect) %>%
         summarize("{f_str}({{stat}})" := smry_f({{stat}}))
+    if (stat.only) {
+        return(smry_df[2][[1]])
+    }
     return(smry_df)
 }
-## Contrast between without and with adlibs
-lyrics_smry(aespa._.Savage1)$mean - lyrics_smry(aespa._.Savage)$mean
+
+lyrics_contrast <- function (fileName, stat = NULL) {
+    ## This might not be a good interface, as it requires processing two times
+    ## Could be better to let user create both datas, then manually contrast
+    with_tree <- lyrics_tree_data(fileName)
+    without_tree <- lyrics_tree_data(fileName, rm.adlibs = TRUE)
+    with_vec <- lyrics_smry(with_tree)[2][[1]]
+    without_vec <- lyrics_smry(without_tree)[2][[1]]
+    contrast <- without_vec - with_vec
+    return(contrast)
+}
 
 ## non-parametrics
 ## http://www.mit.edu/~6.s085/notes/lecture5.pdf
 
-# These compare song distributions, across sections
-# maybe better to be across line_tot
-q <- lyrics_smry(fromis_9._.DM, kr_word_prop)$mean
-w <- lyrics_smry(aespa._.Savage, kr_word_prop)$mean
-ks.test(q,w)
-plot(ecdf(q), xlim = range(c(q,w)))
-plot(ecdf(w), add = TRUE, col = 2)
+lyrics_comp <- function(lyrics_data.a, lyrics_data.b, stat = kr_word_prop) {
+    ## These compare song distributions, across line_tot
+    s <- rlang::as_name(enexpr(stat))
+    meta.a     <- parse_metadata(!!enexpr(lyrics_data.a))
+    meta.b     <- parse_metadata(!!enexpr(lyrics_data.b))
 
-t.test(q,w)
-wilcox.test(q,w)
+    vec.a <- lyrics_data.a %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement(s)
+    vec.b <- lyrics_data.b %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement(s)
 
-## these are across line_tot
-e <- fromis_9._.DM %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement("kr_word_prop")
-r <- aespa._.Savage %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement("kr_word_prop")
-c <- STAYC._.STEREOTYPE %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement("kr_word_prop")
-v <- BLACKPINK._.PrettySavage %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement("kr_word_prop")
+    comp_df <- data.frame(
+        prop = c(vec.a, vec.b),
+        song = c(rep(meta.a, length(vec.a)), rep(meta.b, length(vec.b)))
+    )
 
-e1 <- fromis_9._.DM %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement("kr_syllab_prop")
-r1 <- aespa._.Savage %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement("kr_syllab_prop")
-c1 <- STAYC._.STEREOTYPE %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement("kr_syllab_prop")
-v1 <- BLACKPINK._.PrettySavage %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement("kr_syllab_prop")
+    ## https://rpubs.com/mharris/KSplot
+    cdf.a <- ecdf(vec.a)
+    cdf.b <- ecdf(vec.b)
+    minMax <- seq(min(vec.a, vec.b), max(vec.a, vec.b), length.out=length(vec.a))
+    interval <- which( abs(cdf.a(minMax) - cdf.b(minMax)) == max(abs(cdf.a(minMax) - cdf.b(minMax))) )
+    x0 <- minMax[interval]
+    mid <- median(x0)
+    y0 <- cdf.a(x0)
+    y1 <- cdf.b(x0)
 
-comp_dist <- function(a, b) {
-    print(ks.test(a,b))
-    ggplot(data.frame(
-        prop = c(a,b),
-        song = c(rep(1,length(a)), rep(2,length(b)))
-    ), aes(x=prop, col = as.factor(song))) +
+    plt <- ggplot(comp_df, aes(x=prop, col = as.factor(song))) +
         stat_ecdf(pad = FALSE, geom = "point") +
-        stat_ecdf(pad = FALSE) +
-        geom_density() +
-        geom_dotplot(aes(x=prop,
-                         fill = as.factor(song)),
-                     stackgroups = TRUE,
-                     binwidth = 1/75)
+        stat_ecdf(pad = FALSE, position = position_dodge(w=0.005)) +
+        ## geom_density() +
+        ## geom_dotplot(aes(x=prop,
+
+        ##                  fill = as.factor(song)),
+        ##              stackgroups = TRUE,
+        ##              binpositions = "all",
+        ##              binwidth = 1/75) +
+        geom_segment(aes(x = mid, y = y0[1], xend = mid, yend = y1[1]),
+                     linetype = "dashed", color = "black") +
+
+        labs(fill = "Song", col = "Song") +
+        scale_fill_manual(values = c("#FF7C00", "#00BFE0"))
+
+    print(plt)
+    return(ks.test(vec.a, vec.b))
 }
 
-hist(e, breaks = c(seq(0,1,by = 1/16)), axes = FALSE)
-axis(side = 1 , at = seq(0,1,by = 1/16))
-axis(side = 2 , at = seq(0,25,by = 5))
-box()
+lyrics_begend <- function (lyrics_data) {
+    # Think McNemar is the best as we care about marginals and is for paired
+    # Compared to chisq, fisher, wilcox, t, paired t
+    tree <- lyrics_data %>% lyrics_tree_to_df(by_line = TRUE)
+    kr_beg <- tree %>% getElement("kr_line_begp")
+    kr_end <- tree %>% getElement("kr_line_endp")
 
-comp_dist(e, r)
-comp_dist(e1, r1)
+    table <- table(kr_beg, kr_end)
+    ptab <- prop.table(table)
 
-## trying to be pairwise
-prop_list <- list(e=e,r=r,c=c,v=v)
-sapply(prop_list, \(x) sapply(prop_list, \(y) list(ks.test(x,y)$p.value)))
-sapply(prop_list, \(x) sapply(prop_list, \(y) list(t.test(x,y)$p.value)))
-prop_list1 <- list(e1=e1,r1=r1,c1=c1,v1=v1)
-sapply(prop_list1, \(x) sapply(prop_list, \(y) list(ks.test(x,y)$p.value)))
+    mcnemar <- mcnemar.test(table)
 
-t.test(e,c)
+    msg <- cat(scales::label_percent(0.01)(rowSums(ptab)[2]), "of lines start in Korean,",
+               scales::label_percent(0.01)(colSums(ptab)[2]), "of lines end in Korean.\n\n")
 
-
-
-
-beg <- fromis_9._.DM %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement("kr_line_begp")
-end <- fromis_9._.DM %>% lyrics_tree_to_df(by_line = TRUE) %>% getElement("kr_line_endp")
-t <- table(beg, end)
-chisq.test(t) # due to testing only goodness of fit
-mcnemar.test(t)
-fisher.test(t)
-
-## don't think wilcox works because these are bools/counts
-wilcox.test(t)
-wilcox.test(beg,end)
-wilcox.test(beg,end, paired = TRUE)
-
-## simple paired t-test
-## not sure if beg/end can be considered treatments
-t.test(beg, end, paired = TRUE)
-
-glm(end ~ beg, family = "binomial") %>% summary()
+    msg
+    return(list(table = table,McNemar = mcnemar))
+}

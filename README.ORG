@@ -1,35 +1,83 @@
 * Kren - Analyze Korean-English Language Songs
 A small script that aims to visualize and understand K-Pop songs.
 
-- Where does Kr/En appear in a line/verse/section/song
-- Proportion
-- Comparisons across artists, albums, companies, composers
-+ Just consider each hangul block as one syllable?
-+ Try to compensate for vowel-ㅇ (다음, 아이)
+I have always noticed that K-Pop songs tend to end lines in English, or so I thought. One day, when thinking about this phenomenon, I thought it could be understood through some rudimentary processing. Thus, =Kren= was born.
+
+[[./examples/violin.jpg]]
 
 ** Installation
-=Kren= is not developed as a formal package. Try to evaluate the =Kren.R=.
+=Kren= is not developed as a formal package. Try to evaluate =Kren.R=.
 
-Packages required are:
+Packages required:
+- [[https://cran.r-project.org/package=Unicode][Unicode]]
+- [[https://github.com/trinker/syllable][syllable (requires manual installation)]]
+- [[https://cran.r-project.org/package=ggplot2][ggplot2]]
+- [[https://cran.r-project.org/package=dplyr][dplyr]]
+
 ** Getting Started
-Search for your favorite songs, looking for its Genius page in original lyrics.
+Search for your favorite songs, specifically its Genius page in original (unromanized & untranslated) lyrics.
 
-Copy only the lyrics into a file, see =./examples/example-lyrics.txt= for the correct format. Make sure there is an empty line in between each section, and to keep section headers.
+Copy only the lyrics into a file, see =./examples/dummy_lyrics.txt= for the correct format. Make sure there is an empty line in between each section, and to keep section headers.
+
+The data produced by =lyrics_tree_data= is the main interface for this program.
 
 #+begin_src R :eval no
-  fromis_9._.DM <- lyrics_tree_data("lyrics/fromis_9-DM.txt")
-  lyrics_violin(fromis_9._.DM)
-  lyrics_smry(fromis_9._.DM, stat = kr_prop, smry_f = mean)
+  Artist._.Song <- lyrics_tree_data("dummy_lyrics.txt")
+  lyrics_violin(Artist._.Song)
+  lyrics_smry(Artist._.Song)
 #+end_src
 
-** Inspiration
-I have always noticed that K-Pop songs tend to end lines in English, or so I thought. One day, when thinking about this phenomenon, I thought it could be understood through some ruditementary procesing. Thus, =Kren= was born.
-** Methods
+See =./examples/usage.R= for a full list of interface examples.
+
+** Methodology Details
 - Words
+  - In both languages, words are defined as space-delimited chunks of Unicode.
+  - Ex: "대통령은 of the great (truth)" has 5 words
 - Syllables
-- Non-latin characters, such as ae
+  - Korean
+    - Each block is counted as one syllable
+    - Further work can be done on condensing slurred-vowels such as "다음"
+  - English
+    - Syllable counting is done through the [[https://github.com/trinker/syllable/blob/master/inst/syllable_dictionary_scraping/scrape_syllables.R#L6][syllable]] library, which uses [[poetrysoup.com]]
+    - Further work can be done using [[https://hackage.haskell.org/package/hyphenation][Knuth-Liang Hyphenation]]
+      - Such expansion would allow for analysis of many more languages (mostly latin script-based)
+- Special Characters, such as æ
+  - Processed as 0 syllables, as they are not in the Korean or English Unicode sets
 - Ad-Libs
+  - Ad-Libs are considered any lyric encapsulated by parentheses
+  - Can be ignored through =parse_lyrics(fileName, rm.adlibs = TRUE)=
+  - Example
+    - Original: =normal (this is an adlib) lyrics=
+    - With =rm.adlibs = TRUE=: =normal lyrics=
 - Punctuation
+** Available Analyses
+- =lyrics_violin=
+  - Create a [[https://ggplot2.tidyverse.org/reference/geom_violin.html?q=violin#ref-examples][violin]]-esque plot
+  - Plots syllable count and language across lines and sections
+  - Meant to be read top-down, left to right
+- =lyrics_chist=
+  - Creates a centered histogram plot
+  - Plots language word proportion across total line count
+- =lyrics_series=
+  - Creates a time series-esque plot
+  - Plots language word proportion across total line count
+  - Meant to be more artistic, think as a wallpaper
+- =lyrics_smry=
+  - Returns a df with sections and respective =smry_f(stat)=
+    - Default is =mean(kr_word_prop)=
+  - =smry_f= can be and one-dimensional statistic
+  - =stat= is any of =lyrics_STATS$line=
+- =lyrics_begend=
+  - Analyses occurrence of language at beginning and end of lines
+  - Computes McNemar's test, with a null that the two marginal probabilities for =kr_beg= and =kr_end= are the same
+    - Rejection means that there is a difference in language frequency between the beginning and end of lines
+- =lyrics_comp= for a stat across line_tot
+  - Compare two sets of lyrics on a =stat=
+    - Default is =kr_word_prop=
+    - =stat= is any of =lyrics_STATS$line=
+  - Computes a two-sample Kolmogorov-Smirnov test
+    - Effectively tells if the maximum distance between the two empirical cumulative distribution (ecdf) is large
+    - Rejection means that the two sets do not come ("sample") from a similar generator
 ** TODOs
 *** DONE =raw_df= add in line_beg and line_end
 *** DONE Fix colors on =lyrics_chist=
@@ -45,14 +93,45 @@ https://stackoverflow.com/a/24173271
 gsub("\\s*\\([^\\)]+\\)","",parse_lyrics(fName)$Chorus.1[[8]])
 unlist(strsplit(parse_lyrics(fName)$Chorus.2[[1]], " \\(.*\\)"))
 #+end_src
-*** TODO Add more statistical analysis interfaces, or flesh out more examples
+*** DONE Add more statistical analysis interfaces, or flesh out more examples
+**** DONE Add option to lyrics_smry to just spit out stat summary
+- When sections are not needed
+**** DONE Create Contrast wrapper
+**** DONE Formalize comparing beg and end of line language, =lyrics_begend=
+- Wrapper that gives
+  - Test on group difference? (McNemar?)
+  - Spits out table
+  - Gives "X% of lines started in Korean, Y% Ended in Korean"
+**** DONE Formalize comparing props, =lyrics_comp=
 *** TODO Could look into how repeated sections differ (Chorus)
+- Diffs, =cli::diff_str=
+*** DONE Add License
 *** TODO Consider adding metadata into beginning of lyrics file
-**** Then need to change parsing and processing
-Could Have another folder =metadata= that is one-to-one to =lyrics=
+- Then need to change parsing and processing
+- Could Have another folder =metadata= that is one-to-one to =lyrics=
 *** TODO Implement ways to process multiple files/folders
 **** TODO Then easy ways to compare groups, composers, companies, etc.
 Or just leave up to user
 *** TODO Formalize interface
 The new main can integrate graphs?
 Or just leave as a library with some effort required
+*** TODO Allow =lyrics_chist= and =lyrics_series= to choose word or syllable proportion
+- Currently is hard-coded for word proportion
+*** TODO Strip =lyrics_series= to be only plot, artistic
+*** TODO Consider writing parser/DF processor in a language that can compile
+- Then do visualization and analysis in R
+- This is so a binary can be distributed, and R uses only ggplot
+- But then I would need to find a syllable package
+- Or maybe even in javascript
+  - Or Ocaml, Typescript, Clojure, etc.
+  - Ocaml:
+    - http://ocsigen.org/js_of_ocaml/latest/api/js_of_ocaml/Js_of_ocaml/Dom_html/class-type-inputElement/index.html#method-value
+    - https://dune.readthedocs.io/en/latest/jsoo.html
+  - Can visualize in d3
+    - But does this take json or tabular data
+*** TODO Could Sentiment Analysis on translated lyrics
+ex: VaderSentiment (primarily for social media)
+** Gallery
+[[./examples/chist.jpg]]
+
+[[./examples/series.jpg]]
