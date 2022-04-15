@@ -15,4 +15,4 @@ lyrics_smry(Artist._.Song)
 lyrics_begend(Artist._.Song)
 
 ## Use with two different sets of lyrics
-lyrics_comp(Artist._.Song, Artist._.Song)
+#lyrics_comp(Artist._.Song, Artist._.Song)

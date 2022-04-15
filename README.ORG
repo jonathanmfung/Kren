@@ -31,6 +31,15 @@ The data produced by =lyrics_tree_data= is the main interface for this program.
 
 See =./examples/usage.R= for a full list of interface examples.
 
+*** Using Containers (Docker/Podman)
+Optionally, run:
+
+#+begin_src sh
+podman build -t kren .
+podman run -v ./examples:/home/src/examples kren
+#+end_src
+
+I prefer =podman=, but =docker= should work too.
 ** Methodology Details
 - Words
   - In both languages, words are defined as space-delimited chunks of Unicode.
