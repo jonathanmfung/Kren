@@ -1,0 +1,243 @@
+#+TITLE: Methodology of Kren.R
+#+AUTHOR: Jonathan Fung
+#+PROPERTY: header-args:R :session method :results output :exports both
+#+OPTIONS: ^:nil, toc:nil
+#+LATEX_CLASS: notes
+#+LATEX_HEADER: \usepackage{fontspec}
+#+LATEX_HEADER: \setmainfont[]{IBM Plex Sans KR}
+#+LATEX_HEADER: \setmonofont[]{Noto Sans Mono CJK KR}
+
+#+begin_comment
+Trying to apply multiple fonts to different languages in verbatim blocks
+
+#+LATEX_HEADER: \usepackage{polyglossia}
+
+#+LATEX_HEADER: \setmainlanguage{english}
+#+LATEX_HEADER: \setotherlanguage{korean}
+
+#+LATEX_HEADER: \newfontfamily\englishfont[Script=English]{IBM Plex Sans}
+#+LATEX_HEADER: \newfontfamily\koreanfont[Script=Korean]{IBM Plex Sans KR}
+
+#+LATEX_HEADER: \newfontfamily\englishfonttt[Script=English]{Iosevka SS14}
+#+LATEX_HEADER: \newfontfamily\koreanfonttt[Script=Korean]{IBM Plex Sans KR}
+
+#+LATEX_HEADER: \newfontfamily\koreanfonttt[Language=Korean,Script=Korean]{IBM Plex Sans KR}
+
+#+LATEX_HEADER: \newfontfamily\englishfont[variant=american, ordinalmonthday=true]{Iosevka SS14}
+#+LATEX_HEADER: \newfontfamily\englishfonttt[variant=american, ordinalmonthday=true]{IBM Plex Mono}
+#+LATEX_HEADER: \newfontfamily\koreanfont[variant=plain, captions=hangul, swapstrings=none]{IBM Plex Sans KR}
+#+end_comment
+
+Lets take the first verse of fromis_9's DM as an example.
+
+#+begin_src R :results none :exports none
+source("./Kren.R")
+#+end_src
+
+#+begin_center
+[Verse 1: Nagyung, Seoyeon]
+
+Hey, you, 지금 뭐 해?
+
+잠깐 밖으로 나올래?
+
+네가 보고 싶다고
+
+거울 속의 난 so perfect
+
+새로 산 신발도, check it, okay
+#+end_center
+
+First, the section title is parsed out and stored with =clean_section=.
+
+#+begin_src R
+clean_section("[Verse 1: Nagyung, Seoyeon]")
+#+end_src
+
+#+RESULTS:
+: [1] "Verse 1"
+
+Then, we need to determine if the lyrics bytes come from the English or Korean Unicode blocks.
+
+#+begin_src R
+detect_lang("Hey, you 지금 뭐 해?")
+#+end_src
+
+#+RESULTS:
+: [[1]]
+: [1] "Hey, you 지금 뭐 해?"
+:
+: [[2]]
+:  [1] NA NA NA NA NA NA NA NA NA  1  1 NA  1 NA  1 NA
+
+We can then use this information to determine if a word is Korean or not. Each word is determined by space-separation.
+
+#+begin_src R
+construct_hangulp("Hey, you 지금 뭐 해?")
+#+end_src
+
+#+RESULTS:
+:   words hangulp
+: 1  Hey,   FALSE
+: 2   you   FALSE
+: 3  지금    TRUE
+: 4    뭐    TRUE
+: 5   해?    TRUE
+
+Then, features such as Korean proportion over the line, and syllable count per word can be extracted. =lyrics_tree_data= applies this function over a whole song.
+
+#+begin_src R
+extract_features(construct_hangulp("Hey, you 지금 뭐 해?"))
+#+end_src
+
+#+RESULTS:
+#+begin_example
+[[1]]
+  kr_dist syllables
+1       0         1
+2       0         1
+3       1         2
+4       1         1
+5       1         1
+
+[[2]]
+[[2]]$kr_word_prop
+[1] 0.6
+
+[[2]]$kr_cnt
+[1] 3
+
+[[2]]$word_cnt
+[1] 5
+#+end_example
+
+English syllables are calculated using the =syllables= library, which scrapes [[https://www.poetrysoup.com/syllables/][poetrysoup]]. Since Korean is a syllabic language, the syllable count is simply the number of blocks.
+
+#+begin_src R
+apply(construct_hangulp("거울 속의 난 so perfect"), 1, count_syllable)
+#+end_src
+
+#+RESULTS:
+: [1] 2 2 1 1 2
+
+
+* Utils :noexport:
+** rm_punc
+#+begin_src R
+rm_punc("Hey, you, 지금 뭐 해?")
+#+end_src
+
+#+RESULTS:
+: [1] "Hey you 지금 뭐 해"
+
+** DONE count_syllable
+#+begin_src R
+count_syllable("Hey, you, 지금 뭐 해?")
+#+end_src
+
+#+RESULTS:
+: Error in row$words : $ operator is invalid for atomic vectors
+
+** DONE detect_lang
+#+begin_src R
+detect_lang("Hey, you 지금 뭐 해?")
+#+end_src
+
+#+RESULTS:
+: [[1]]
+: [1] "Hey, you 지금 뭐 해?"
+:
+: [[2]]
+:  [1] NA NA NA NA NA NA NA NA NA  1  1 NA  1 NA  1 NA
+
+** centered_range
+* Processing :noexport:
+** DONE construct_hangulp
+#+begin_src R
+construct_hangulp("Hey, you 지금 뭐 해?")
+#+end_src
+
+#+RESULTS:
+:   words hangulp
+: 1  Hey,   FALSE
+: 2   you   FALSE
+: 3  지금    TRUE
+: 4    뭐    TRUE
+: 5   해?    TRUE
+
+** DONE clean_section
+#+begin_src R
+clean_section("[Verse 1: Nagyung, Seoyeon]")
+#+end_src
+
+#+RESULTS:
+: [1] "Verse 1"
+
+** parse_lyrics
+#+begin_src R
+parse_lyrics("./examples/dummy_lyrics.txt")
+#+end_src
+
+#+RESULTS:
+#+begin_example
+$Verse
+[1] "국가는 대외무역을 육성하며"
+[2] "정부나 법원의 I must explain to you"
+[3] "denouncing 특별한 조치를 할 a pleasure"
+[4] "and praising pain"
+[5] "대통령은 of the great (truth)"
+[6] "사변 또는 이에 준하는"
+[7] "the master-builder of human happiness, 국가비상사태에"
+
+$Chorus
+[1] "유지할 필요가 있을"
+[2] "법률이 No one rejects, 바에 의하여 or avoids pleasure itself"
+[3] "(계엄을 수) 있다 모든 who do not know how 국민은"
+[4] "but because those 보건에 관하여 국가의"
+[5] "보호를 받는다"
+[6] "rationally encounter"
+[7] "consequences (that are) extremely painful"
+#+end_example
+
+** DONE extract_features
+#+begin_src R
+extract_features(construct_hangulp("Hey, you 지금 뭐 해?"))
+#+end_src
+
+#+RESULTS:
+#+begin_example
+[[1]]
+  kr_dist syllables
+1       0         1
+2       0         1
+3       1         2
+4       1         1
+5       1         1
+
+[[2]]
+[[2]]$kr_word_prop
+[1] 0.6
+
+[[2]]$kr_cnt
+[1] 3
+
+[[2]]$word_cnt
+[1] 5
+#+end_example
+
+** lyrics_to_data
+* Main :noexport:
+** DONE lyrics_tree_data
+** parse_metadata
+** theme_kren
+** section_tree_to_df
+** lyrics_tree_to_df
+* Plots  :noexport:
+** lyrics_violin
+** lyrics_chist
+** lyrics_series
+* Analysis :noexport:
+** lyrics_smry
+** lyrics_contrast
+** lyrics_comp
+** lyrics_begend

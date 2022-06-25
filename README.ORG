@@ -41,6 +41,8 @@ podman run -v ./examples:/home/src/examples kren
 
 I prefer =podman=, but =docker= should work too.
 ** Methodology Details
+See [[file:METHODOLOGY.pdf][METHODOLOGY.pdf]] for examples.
+
 - Words
   - In both languages, words are defined as space-delimited chunks of Unicode.
   - Ex: "대통령은 of the great (truth)" has 5 words

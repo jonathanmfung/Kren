@@ -51,3 +51,4 @@ Or just leave as a library with some effort required
 ** TODO Could Sentiment Analysis on translated lyrics
 ex: VaderSentiment (primarily for social media)
 ** DONE Improve container usage
+** DONE Write about Methodology (use org-transclusion)
