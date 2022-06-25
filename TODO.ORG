@@ -50,3 +50,4 @@ Or just leave as a library with some effort required
     - But does this take json or tabular data
 ** TODO Could Sentiment Analysis on translated lyrics
 ex: VaderSentiment (primarily for social media)
+** DONE Improve container usage

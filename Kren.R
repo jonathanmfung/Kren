@@ -2,7 +2,7 @@ library(Unicode)
 library(syllable) # https://github.com/trinker/syllable, installed via R's pacman
 
 library(ggplot2)
-library(dplyr)
+library(dplyr, warn.conflicts = FALSE)
 
 # Utilities ------------------------------
 

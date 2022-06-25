@@ -1,3 +1,4 @@
+options(warn=-1)
 source("../Kren.R")
 
 Artist._.Song <- lyrics_tree_data("dummy_lyrics.txt")
@@ -11,7 +12,7 @@ ggsave("chist.jpg", width = 1700, height = 2000, units = "px", dpi = 200)
 lyrics_series(Artist._.Song)
 ggsave("series.jpg", width = 1600, height = 1000, units = "px", dpi = 200)
 
-lyrics_smry(Artist._.Song)
+print(lyrics_smry(Artist._.Song))
 lyrics_begend(Artist._.Song)
 
 ## Use with two different sets of lyrics
