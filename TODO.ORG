@@ -28,6 +28,12 @@ unlist(strsplit(parse_lyrics(fName)$Chorus.2[[1]], " \\(.*\\)"))
 ** TODO Consider adding metadata into beginning of lyrics file
 - Then need to change parsing and processing
 - Could Have another folder =metadata= that is one-to-one to =lyrics=
+- Metadata:
+  - Producer/Credits
+  - Company
+  - Release Data
+  - Album name
+  - About/Song Bio
 ** TODO Implement ways to process multiple files/folders
 *** TODO Then easy ways to compare groups, composers, companies, etc.
 Or just leave up to user
@@ -48,6 +54,7 @@ Or just leave as a library with some effort required
     - https://dune.readthedocs.io/en/latest/jsoo.html
   - Can visualize in d3
     - But does this take json or tabular data
+- Can target WebAssembly with Haskell (Asterius) or Grain
 ** TODO Could Sentiment Analysis on translated lyrics
 ex: VaderSentiment (primarily for social media)
 ** DONE Improve container usage
